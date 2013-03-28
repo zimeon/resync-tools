@@ -44,16 +44,16 @@ def main():
                               add_help_option=False)
     p.add_option('--resourcelist','-r',action='store',
                  help='Specify resource list to examine')
-    (opts,args) = p.parse_args()
+    p.add_option('--pdf','-p',action='store',
+                 help='Save PDF to specified file')
+
+    (opt,arg) = p.parse_args()
     
-    if (not opts.resourcelist):
+    if (not opt.resourcelist):
         (d,dnz) = get_data0()
     else:
-        (d,dnz) = get_data1(opts.resourcelist)
+        (d,dnz) = get_data1(opt.resourcelist)
 
-    save_as = None
-    #save_as = 'hist.pdf'
-    #print d
     fig = plt.figure()
     tp = fig.add_subplot(2,2,3)
     tp.text(0,0,'TEXT AT 0,0')
@@ -73,8 +73,8 @@ def main():
             f2.set_ylabel('Number of resources')
         else:
             f2.text(0.1,0.5,'No resources with length info')
-    if (save_as):
-        plt.savefig(save_as, format='pdf', orientation='landscape')
+    if (opt.pdf):
+        plt.savefig(opt.pdf, format='pdf', orientation='landscape')
     else:
         plt.show()
         
