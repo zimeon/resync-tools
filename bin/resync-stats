@@ -75,6 +75,7 @@ def main():
             f2.text(0.1,0.5,'No resources with length info')
     if (opt.pdf):
         plt.savefig(opt.pdf, format='pdf', orientation='landscape')
+        print "Plot saved as %s" % (opt.pdf)
     else:
         plt.show()
         
