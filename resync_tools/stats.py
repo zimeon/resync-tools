@@ -94,7 +94,7 @@ class Stats(object):
         f1r = fig.add_subplot(3,2,2)
         f1r.text(0.1,0.8,'%d resources' % len(resourcelist))
         f1r.text(0.1,0.6,"%d resources with length" % len(d))
-        f1r.text(0.1,0.4,"%d resources with no length" % self.no_length)
+        f1r.text(0.1,0.4,"%d resources with no length (omitted)" % self.no_length)
         f2l = fig.add_subplot(3,2,3)
         if (len(dnz)>0):
             f2l.hist(dnz, bins=self.bins)
@@ -105,6 +105,7 @@ class Stats(object):
             f2l.text(0.1,0.5,'No resources with non-zero length')
         f2r = fig.add_subplot(3,2,4)
         f2r.text(0.1,0.8,'%d resources with non-zero length' % len(dnz))
+        f2r.text(0.1,0.6,'%d resources with zero length (omitted)' % (len(d)-len(dnz)))
         f3l = fig.add_subplot(3,2,5)
         if (len(updates)>0):
             f3l.hist(updates, bins=self.bins)
@@ -117,7 +118,7 @@ class Stats(object):
         f3r.text(0.1,0.8,"%d resources with timestamp" % len(updates))
         f3r.text(0.1,0.6,"oldest: %s" % datetime_to_str(self.oldest))
         f3r.text(0.1,0.4,"newest: %s" % datetime_to_str(self.newest))
-        f3r.text(0.1,0.2,"%d resources with no timestamp" % self.no_timestamp)
+        f3r.text(0.1,0.2,"%d resources with no timestamp (omitted)" % self.no_timestamp)
 
         fig.subplots_adjust(left=None, bottom=None, right=None, top=None,
                             wspace=0.2, hspace=0.5)
