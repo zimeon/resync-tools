@@ -1,2 +1,5 @@
+# Build dir from setup.py
+build
+# Editor files and compile python
 *~
 *.pyc
