@@ -74,8 +74,8 @@ class Stats(object):
                 update/=factor
         #
         return(lengths, lengths_no_zero, updates, updates_unit)
-                
-                
+    
+
     def analyze(self,resourcelist,opt):
 
         (d,dnz,updates,updates_unit) = self.extract(resourcelist)
@@ -92,6 +92,7 @@ class Stats(object):
         else:
             f1l.text(0.1,0.5,'No resources with length')
         f1r = fig.add_subplot(3,2,2)
+        f1r.axis('off')
         f1r.text(0.1,0.8,'%d resources' % len(resourcelist))
         f1r.text(0.1,0.6,"%d resources with length" % len(d))
         f1r.text(0.1,0.4,"%d resources with no length (omitted)" % self.no_length)
@@ -104,6 +105,7 @@ class Stats(object):
         else:
             f2l.text(0.1,0.5,'No resources with non-zero length')
         f2r = fig.add_subplot(3,2,4)
+        f2r.axis('off')
         f2r.text(0.1,0.8,'%d resources with non-zero length' % len(dnz))
         f2r.text(0.1,0.6,'%d resources with zero length (omitted)' % (len(d)-len(dnz)))
         f3l = fig.add_subplot(3,2,5)
@@ -115,6 +117,7 @@ class Stats(object):
         else:
             f3l.text(0.1,0.5,'No resources with timestamp')
         f3r = fig.add_subplot(3,2,6)
+        f3r.axis('off')
         f3r.text(0.1,0.8,"%d resources with timestamp" % len(updates))
         f3r.text(0.1,0.6,"oldest: %s" % datetime_to_str(self.oldest))
         f3r.text(0.1,0.4,"newest: %s" % datetime_to_str(self.newest))
