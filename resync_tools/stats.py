@@ -126,6 +126,6 @@ class Stats(object):
         # Write PDF or display in interactive viewer?
         if (opt.pdf):
             plt.savefig(opt.pdf, format='pdf', orientation='landscape')
-            print "Plot saved as %s" % (opt.pdf)
+            print("Plot saved as %s" % (opt.pdf))
         else:
             plt.show()

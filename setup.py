@@ -1,4 +1,4 @@
-from distutils.core import setup
+from setuptools import setup
 
 setup(
     name='resync-tools',
@@ -13,4 +13,7 @@ setup(
     author_email='simeon.warner@cornell.edu',
     long_description=open('README').read(),
     url='http://github.com/resync/tools',
+    install_requires=[
+        "matplotlib",
+    ],
 )
