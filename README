@@ -4,6 +4,11 @@ ResourceSync Tools
 
   * ``resync-stats`` - Make a one-pager of stats for a ResourceSync site
 
+Requirements
+------------
+
+Designed to run with python 2.7, or python 3.4 and higher.
+
 Requirements - OSX
 ------------------
 
