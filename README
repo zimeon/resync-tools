@@ -1,4 +1,17 @@
-# ResourceSync Tools
+==================
+ResourceSync Tools 
+==================
 
-  * {{resync-stats}} - Make a one-pager of stats for a ResourceSync site
-  * ...
+  * ``resync-stats`` - Make a one-pager of stats for a ResourceSync site
+
+Requirements - OSX
+------------------
+
+The `Matplotlib
+<http://matplotlib.org/index.html>`_ backends need python to be installed as a "framework" in order to interact with the native GUI. See `Working with Matplotlib on OSX
+<http://matplotlib.org/faq/osx_framework.html#osxframework-faq>`_ for details.
+
+For example, using ``Conda`` one must install with ``conda install python.app`` and use ``pythonw`` instead of ``python``, e.g.::
+
+    pythonw resync-stats -r my_resource_list.xml
+

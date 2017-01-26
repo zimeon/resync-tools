@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-""" Generate summary statistics based on a Resource List
+#!/usr/bin/env pythonw
+""" Generate summary statistics based on a Resource List.
 """
 from resync import ResourceList
 from resync_tools.stats import Stats
@@ -9,30 +9,31 @@ import math
 import optparse
 import sys
 
+
 def main():
 
-    if (sys.version_info < (2,6)):
+    if (sys.version_info < (2, 6)):
         sys.exit("This program requires python version 2.6 or later")
-    
+
     # Options and arguments
     p = optparse.OptionParser(description='ResourceSync stats',
                               usage='usage: %prog [options] (-h for help)',
                               add_help_option=True)
-    p.add_option('--resourcelist','-r',action='store',
+    p.add_option('--resourcelist', '-r', action='store',
                  help='Specify resource list to examine')
-    p.add_option('--pdf','-p',action='store',
+    p.add_option('--pdf', '-p', action='store',
                  help='Save PDF to specified file')
-    p.add_option('--testdata','-t',action='store_true',
+    p.add_option('--testdata', '-t', action='store_true',
                  help='Use built in test data to demo output')
-    p.add_option('--bins','-b',action='store',type='int',
+    p.add_option('--bins', '-b', action='store', type='int',
                  help='Set the number of bins used for the histograms')
-    p.add_option('--verbose','-v',action='store',
+    p.add_option('--verbose', '-v', action='store',
                  help='Verbose output')
-    (opt,arg) = p.parse_args()
-    
+    (opt, arg) = p.parse_args()
+
     stats = Stats()
     if (opt.bins):
-        stats.bins =  opt.bins
+        stats.bins = opt.bins
     if (opt.testdata):
         opt.resourcelist = stats.testdata()
     elif (not opt.resourcelist):
@@ -41,7 +42,7 @@ def main():
     rl.read(opt.resourcelist)
     if (opt.verbose):
         print("Got %d entries from Resource List" % len(rl))
-    stats.analyze(resourcelist=rl,opt=opt)
+    stats.analyze(resourcelist=rl, opt=opt)
 
 if __name__ == '__main__':
     main()

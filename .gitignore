@@ -2,6 +2,5 @@
 build
 dist
 resync_tools.egg-info
-# Editor files and compile python
-*~
 *.pyc
+.cache
