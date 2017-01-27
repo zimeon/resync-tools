@@ -3,6 +3,7 @@
 from resync.w3c_datetime import str_to_datetime, datetime_to_str
 
 import matplotlib.pyplot as plt
+from matplotlib import cm
 from matplotlib.backends.backend_pdf import PdfPages
 import math
 import sys
@@ -19,11 +20,13 @@ class Stats(object):
     def __init__(self, bins=100):
         """Initialize empty Stats object."""
         self.resource_count = 0
-        self.lengths = []
-        self.lengths_log = []
+        self.sizes = []
+        self.sizes_unit = 'bytes'
+        self.sizes_max = 0
+        self.sizes_log = []
         self.extensions_count = {}
         self.extensions_size = {}
-        self.no_length = 0
+        self.no_size = 0
         self.no_timestamp = 0
         self.oldest = 0
         self.newest = 0
@@ -39,8 +42,27 @@ class Stats(object):
 
     def extension(self, uri):
         """Return uri extension or 'none'."""
-        ext = os.path.splitext(uri)[1]
+        (base, ext) = os.path.splitext(uri)
+        if (ext in ['.gz','.bz','.bz2']):
+            # Look at next extension instead
+            ext = os.path.splitext(uri)[1]
         return(ext if ext else 'none')
+
+    def extension_to_media_type(self, ext):
+        """Get broad media type from extension."""
+        ext = ext.lower()[1:]  # lowercase & remove leading period
+        media_type = "Unknown"
+        if (ext in ['tif','tiff','jpg','jpeg','png','gif']):
+            media_type = "Image"
+        elif (ext in ['mov','avi','mpg','mp4','qt']):
+            media_type = "Video"
+        elif (ext in ['mp3','wav','vob','wma','flac']):
+            media_type = "Audio"
+        elif (ext in ['txt','doc','docx','pdf']):
+            media_type = "Text"
+        elif (ext in ['xml','rdf','md5']):
+            media_type = "Metadata"
+        return(media_type)
 
     def extract(self, rl):
         """Extract stats from ResourceList.
@@ -55,14 +77,16 @@ class Stats(object):
             ref_datetime = time.time()
         self.resource_count += len(rl)
         for r in rl:
-            l = 0
+            size = 0
             if (r.length is not None):
-                l = r.length / 1000.0
-                self.lengths.append(l)
-                if (l > 0):
-                    self.lengths_log.append(math.log10(l))
+                size = r.length
+                self.sizes.append(size)
+                if (size > 0):
+                    self.sizes_log.append(math.log10(size))
+                if (size > self.sizes_max):
+                    self.sizes_max = size
             else:
-                self.no_length += 1
+                self.no_size += 1
             if (r.timestamp is not None):
                 updated = (r.timestamp - ref_datetime)  # seconds
                 self.updates.append(updated)
@@ -75,7 +99,7 @@ class Stats(object):
             # URI/file extensions as surrograte for media type
             ext = self.extension(r.uri)
             self.extensions_count[ext] = self.extensions_count.get(ext, 0) + 1
-            self.extensions_size[ext] = self.extensions_size.get(ext, 0) + l
+            self.extensions_size[ext] = self.extensions_size.get(ext, 0) + size
 
     def rescale_updates(self):
         """Decide whether hours or days are better measure of updates."""
@@ -106,7 +130,34 @@ class Stats(object):
         # Rescale the data (should perhaps do in-place?)
         self.updates = [x / factor for x in self.updates]
 
-    def pie(self, subplot, data_dict, title=None):
+    def sizes_factor(self, size, max_numeric=2.0):
+        """Decide size scaling factor and best unit."""
+        size *= 1024.0 / max_numeric
+        if (size > 1099511627776):
+            return(1099511627776.0, 'TB')
+        elif (size > 1073741824):
+            return(1073741824.0, 'GB')
+        elif (size > 1048576):
+            return(1048576.0, 'MB')
+        elif (size > 1024):
+            return(1024.0, 'kB')
+        else:
+            return(1,'bytes')
+
+    def rescale_sizes(self):
+        """Decide whether kB / MB / GB are best measure of sizes."""
+        (factor, unit) = self.sizes_factor(self.sizes_max)        
+        self.sizes_unit = unit
+        if (factor != 1):
+            # Rescale the data (should perhaps do in-place?)
+            self.sizes = [x / factor for x in self.sizes]
+
+    def human_size(self, size):
+        """Human readable resource size string."""
+        (factor, unit) = self.sizes_factor(size, 900.0)
+        return("%.1f %s" % ((size / factor), unit))
+
+    def pie(self, subplot, data_dict, title=None, color_dict=None):
         """Plot pie chart from dict of label->value.
 
         See: https://pythonspot.com/matplotlib-pie-chart/
@@ -115,10 +166,37 @@ class Stats(object):
         # FIXME - should have some limit on number of types to show
         values = [float(x[1]) for x in s]
         labels = [x[0] for x in s]
+        if (color_dict is None):
+            color_dict = {}
+        # Either use existing color_dict or build a new one for
+        # possible re-use (to get same colors for same label in
+        # a new plot)
+        colors = []
+        cmap = ['red', 'blue', 'green', 'yellowgreen',
+                'gold', 'lightskyblue', 'lightcoral']
+        cn = 0
+        for label in labels:
+            if (label not in color_dict):
+                col = cmap[cn % len(cmap)]
+                color_dict[label] = col
+                cn += 1
+            colors.append(color_dict[label])
         subplot.axis('equal')
-        subplot.pie(values, labels=labels, autopct='%1.1f%%')
+        subplot.pie(values, labels=labels, colors=colors, autopct='%1.1f%%')
         if title is not None:
             subplot.set_title(title)
+        return(color_dict)
+
+    def text_plot(self, subplot, lines):
+        """Write test lines to subplot."""
+        subplot.axis('off')
+        line_height = 1.0 / 6
+        if (len(lines) > 6):
+            line_height = 1.0 / len(lines)
+        y = 1.0
+        for line in lines:
+            y -= line_height
+            subplot.text(0.1, y, line)
 
     def summary_page1(self):
         """Plot summary stats."""
@@ -127,32 +205,32 @@ class Stats(object):
         rows = 3
         cols = 2
         f1l = fig.add_subplot(rows, cols, 1)
-        if (len(self.lengths) > 0):
-            f1l.hist(self.lengths, bins=self.bins)
+        if (len(self.sizes) > 0):
+            f1l.hist(self.sizes, bins=self.bins)
             f1l.set_title('Histogram of resource sizes')
-            f1l.set_xlabel('Size (kB)')
+            f1l.set_xlabel('Size (%s)' % (self.sizes_unit))
             f1l.set_ylabel('Number of resources')
         else:
-            f1l.text(0.1, 0.5, 'No resources with length')
+            f1l.text(0.1, 0.5, 'No resources with size')
         f1r = fig.add_subplot(rows, cols, 2)
         f1r.axis('off')
         f1r.text(0.1, 0.8, '%d resources' % self.resource_count)
-        f1r.text(0.1, 0.6, "%d resources with length" % len(self.lengths))
-        f1r.text(0.1, 0.4, "%d resources with no length (omitted)" %
-                 self.no_length)
+        f1r.text(0.1, 0.6, "%d resources with size" % len(self.sizes))
+        f1r.text(0.1, 0.4, "%d resources with no size (omitted)" %
+                 self.no_size)
         f2l = fig.add_subplot(rows, cols, 3)
-        if (len(self.lengths_log) > 0):
-            f2l.hist(self.lengths_log, bins=self.bins)
+        if (len(self.sizes_log) > 0):
+            f2l.hist(self.sizes_log, bins=self.bins)
             f2l.set_title('Histogram of log10(resource sizes)')
-            f2l.set_xlabel('log10( Size (kB) )')
+            f2l.set_xlabel('log10( Size (bytes) )')
             f2l.set_ylabel('Number of resources')
         else:
-            f2l.text(0.1, 0.5, 'No resources with non-zero length')
+            f2l.text(0.1, 0.5, 'No resources with non-zero size')
         f2r = fig.add_subplot(rows, cols, 4)
         f2r.axis('off')
-        f2r.text(0.1, 0.8, '%d resources with non-zero length' % len(self.lengths_log))
-        f2r.text(0.1, 0.6, '%d resources with zero length (omitted)' %
-                 (len(self.lengths) - len(self.lengths_log)))
+        f2r.text(0.1, 0.8, '%d resources with non-zero size' % len(self.sizes_log))
+        f2r.text(0.1, 0.6, '%d resources with zero size (omitted)' %
+                 (len(self.sizes) - len(self.sizes_log)))
         f3l = fig.add_subplot(rows, cols, 5)
         if (len(self.updates) > 0):
             f3l.hist(self.updates, bins=self.bins)
@@ -178,11 +256,42 @@ class Stats(object):
         rows = 2
         cols = 2
         f1l = fig.add_subplot(rows, cols, 1)
-        self.pie(f1l, self.extensions_count, 'Counts by extension')
+        color_dict = self.pie(f1l, self.extensions_count,
+                              title='Counts by extension')
         f2l = fig.add_subplot(rows, cols, 3)
-        self.pie(f2l, self.extensions_size, 'Aggregate size by extension')
+        self.pie(f2l, self.extensions_size,
+                 title='Aggregate size by extension',
+                 color_dict=color_dict)
         fig.subplots_adjust(left=None, bottom=None, right=None, top=None,
                             wspace=0.5, hspace=0.5)
+
+    def summary_page3(self):
+        """Plot summary stats by rough media types."""
+        media_count = {}
+        media_size = {}
+        for ext in self.extensions_count:
+            mt = self.extension_to_media_type(ext)
+            media_count[mt] = media_count.get(mt, 0) + self.extensions_count[ext]
+            media_size[mt] = media_size.get(mt, 0) + self.extensions_size[ext]
+        fig = plt.figure(figsize=(10, 8))
+        fig.suptitle(self.title + " (page 3)")
+        rows = 2
+        cols = 2
+        f1l = fig.add_subplot(rows, cols, 1)
+        color_dict = self.pie(f1l, media_count,
+                              title='Counts by media type')
+        f2l = fig.add_subplot(rows, cols, 3)
+        self.pie(f2l, media_size,
+                 title='Aggregate size by media type',
+                 color_dict=color_dict)
+        fig.subplots_adjust(left=None, bottom=None, right=None, top=None,
+                            wspace=0.5, hspace=0.5)
+        f2r = fig.add_subplot(rows, cols, 4)
+        agg_size = sum(media_size.values())
+        lines = ["Aggregate size = %s" % (self.human_size(agg_size))]
+        for (k, v) in media_size.items():
+            lines.append("%s : %s" % (k, self.human_size(v)))
+        self.text_plot(f2r, lines)
 
     def summarize(self, opt):
         """Gerenate comple summary in requested format."""
@@ -198,8 +307,11 @@ class Stats(object):
                 self.summary_page2()
                 pdf.savefig()
                 plt.close()
+                self.summary_page3()
+                pdf.savefig()
+                plt.close()
                 d = pdf.infodict()
-                d['Title'] = title
+                d['Title'] = self.title
                 d['CreationDate'] = datetime.datetime.today()
                 d['ModDate'] = datetime.datetime.today()
             print("Plot saved as %s" % (opt.pdf))
@@ -212,9 +324,14 @@ class Stats(object):
             self.summary_page2()
             plt.show()
             _ = input("Press [enter] to continue.")
+            plt.close()
+            self.summary_page3()
+            plt.show()
+            _ = input("Press [enter] to continue.")
 
     def analyze_and_summarize(self, resourcelist, opt):
         """Extract and summarize stats for ResourceList."""
         self.extract(resourcelist)
         self.rescale_updates()
+        self.rescale_sizes()
         self.summarize(opt)
