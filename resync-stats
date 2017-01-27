@@ -42,7 +42,7 @@ def main():
     rl.read(opt.resourcelist)
     if (opt.verbose):
         print("Got %d entries from Resource List" % len(rl))
-    stats.analyze(resourcelist=rl, opt=opt)
+    stats.analyze_and_summarize(resourcelist=rl, opt=opt)
 
 if __name__ == '__main__':
     main()

@@ -4,3 +4,5 @@ dist
 resync_tools.egg-info
 *.pyc
 .cache
+# PDF output files
+*.pdf
