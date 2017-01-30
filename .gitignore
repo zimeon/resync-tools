@@ -2,6 +2,7 @@
 build
 dist
 resync_tools.egg-info
+.eggs
 *.pyc
 .cache
 # PDF output files

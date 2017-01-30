@@ -6,4 +6,4 @@ class TestStats(unittest.TestCase):
 
     def test01_init(self):
         s = Stats()
-        self.assertEqual(s.lengths, [])
+        self.assertEqual(s.sizes, [])

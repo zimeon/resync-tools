@@ -43,24 +43,24 @@ class Stats(object):
     def extension(self, uri):
         """Return uri extension or 'none'."""
         (base, ext) = os.path.splitext(uri)
-        if (ext in ['.gz','.bz','.bz2']):
+        if (ext in ['.gz', '.bz', '.bz2']):
             # Look at next extension instead
             ext = os.path.splitext(uri)[1]
-        return(ext if ext else 'none')
+        return(ext.lower() if ext else 'none')
 
     def extension_to_media_type(self, ext):
         """Get broad media type from extension."""
         ext = ext.lower()[1:]  # lowercase & remove leading period
         media_type = "Unknown"
-        if (ext in ['tif','tiff','jpg','jpeg','png','gif']):
+        if (ext in ['tif', 'tiff', 'jpg', 'jpeg', 'png', 'gif', 'psd', 'bmp']):
             media_type = "Image"
-        elif (ext in ['mov','avi','mpg','mp4','qt']):
+        elif (ext in ['mov', 'avi', 'mpg', 'mp4', 'qt']):
             media_type = "Video"
-        elif (ext in ['mp3','wav','vob','wma','flac']):
+        elif (ext in ['mp3', 'wav', 'vob', 'wma', 'flac']):
             media_type = "Audio"
-        elif (ext in ['txt','doc','docx','pdf']):
+        elif (ext in ['txt', 'htm', 'html', 'doc', 'docx', 'pdf']):
             media_type = "Text"
-        elif (ext in ['xml','rdf','md5']):
+        elif (ext in ['xml', 'rdf', 'md5']):
             media_type = "Metadata"
         return(media_type)
 
@@ -142,11 +142,11 @@ class Stats(object):
         elif (size > 1024):
             return(1024.0, 'kB')
         else:
-            return(1,'bytes')
+            return(1, 'bytes')
 
     def rescale_sizes(self):
         """Decide whether kB / MB / GB are best measure of sizes."""
-        (factor, unit) = self.sizes_factor(self.sizes_max)        
+        (factor, unit) = self.sizes_factor(self.sizes_max)
         self.sizes_unit = unit
         if (factor != 1):
             # Rescale the data (should perhaps do in-place?)
