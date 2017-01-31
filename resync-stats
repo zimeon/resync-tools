@@ -1,9 +1,9 @@
 #!/usr/bin/env pythonw
-""" Generate summary statistics based on a Resource List.
-"""
+""" Generate summary statistics based on a Resource List."""
 from resync import ResourceList
 from resync_tools.stats import Stats
 
+import logging
 import matplotlib.pyplot as plt
 import math
 import optparse
@@ -17,32 +17,45 @@ def main():
 
     # Options and arguments
     p = optparse.OptionParser(description='ResourceSync stats',
-                              usage='usage: %prog [options] (-h for help)',
+                              usage='usage: %prog [options] [[Resource_Lists]] (-h for help)',
                               add_help_option=True)
-    p.add_option('--resourcelist', '-r', action='store',
-                 help='Specify resource list to examine')
     p.add_option('--pdf', '-p', action='store',
                  help='Save PDF to specified file')
+    p.add_option('--title', action='store',
+                 help="Optional title for plots")
     p.add_option('--testdata', '-t', action='store_true',
                  help='Use built in test data to demo output')
     p.add_option('--bins', '-b', action='store', type='int',
                  help='Set the number of bins used for the histograms')
-    p.add_option('--verbose', '-v', action='store',
+    p.add_option('--logfile', action='store',
+                 help="Send log output to specified file")
+    p.add_option('--verbose', '-v', action='store_true',
                  help='Verbose output')
-    (opt, arg) = p.parse_args()
+    (opt, args) = p.parse_args()
+
+    level = logging.INFO if opt.verbose else logging.WARN
+    format = '%(message)s'
+    if (opt.logfile):
+        logging.basicConfig(format=format, filename=opt.logfile, level=level)
+    else:
+        logging.basicConfig(format=format, level=level)
 
     stats = Stats()
     if (opt.bins):
         stats.bins = opt.bins
     if (opt.testdata):
-        opt.resourcelist = stats.testdata()
-    elif (not opt.resourcelist):
-        p.error("Must specify either -r resource_list_uri or -t")
-    rl = ResourceList()
-    rl.read(opt.resourcelist)
-    if (opt.verbose):
-        print("Got %d entries from Resource List" % len(rl))
-    stats.analyze_and_summarize(resourcelist=rl, opt=opt)
+        rl_uris = [stats.testdata()]
+    elif (len(args) == 0):
+        p.error("Must specify either resource_list URI(s) as argument or -t")
+    else:
+        rl_uris = args
+    for rl_uri in rl_uris:
+        rl = ResourceList()
+        rl.read(rl_uri)
+        if (opt.verbose):
+            logging.warn("Got %d entries from Resource List %s" % (len(rl), rl_uri))
+        stats.extract(rl)
+    stats.analyze_and_summarize(opt=opt)
 
 if __name__ == '__main__':
     main()

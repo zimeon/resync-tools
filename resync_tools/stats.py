@@ -2,6 +2,7 @@
 
 from resync.w3c_datetime import str_to_datetime, datetime_to_str
 
+import logging
 import matplotlib.pyplot as plt
 from matplotlib import cm
 from matplotlib.backends.backend_pdf import PdfPages
@@ -12,6 +13,11 @@ import os.path
 import time
 import datetime
 from builtins import input  # py2 safe input() compatible with py3
+
+
+def items_by_value(d, ascending=False):
+    """Return list if tuples from dict sorted by value."""
+    return(sorted(d.items(), key=lambda x: x[1], reverse=(not ascending)))
 
 
 class Stats(object):
@@ -41,27 +47,38 @@ class Stats(object):
         return(os.path.join(os.path.dirname(__file__), "testdata/resourcelist2.xml"))
 
     def extension(self, uri):
-        """Return uri extension or 'none'."""
+        """Return uri extension or '.none'.
+
+        Extension returned included preceding period.
+        """
         (base, ext) = os.path.splitext(uri)
         if (ext in ['.gz', '.bz', '.bz2']):
             # Look at next extension instead
             ext = os.path.splitext(uri)[1]
-        return(ext.lower() if ext else 'none')
+        return(ext.lower() if ext else '.none')
 
     def extension_to_media_type(self, ext):
         """Get broad media type from extension."""
         ext = ext.lower()[1:]  # lowercase & remove leading period
-        media_type = "Unknown"
-        if (ext in ['tif', 'tiff', 'jpg', 'jpeg', 'png', 'gif', 'psd', 'bmp']):
+        if (ext in ['tif', 'tiff', 'jpg', 'jpeg', 'png', 'gif', 'psd',
+                    'bmp', 'wmf', 'pst', 'eps', 'ps', 'xmp', 'bmap',
+                    'img']):
             media_type = "Image"
-        elif (ext in ['mov', 'avi', 'mpg', 'mp4', 'qt']):
+        elif (ext in ['mov', 'avi', 'mpg', 'mp4', 'qt', 'vob', 'flv',
+                      'f4v', 'wmv', 'mpeg', 'm4v', 'm2v']):
             media_type = "Video"
-        elif (ext in ['mp3', 'wav', 'vob', 'wma', 'flac']):
+        elif (ext in ['mp3', 'wav', 'vob', 'wma', 'flac', 'm4a', 'cda',
+                      'aif', 'aiff', 'aifc']):
             media_type = "Audio"
-        elif (ext in ['txt', 'htm', 'html', 'doc', 'docx', 'pdf']):
+        elif (ext in ['txt', 'htm', 'html', 'doc', 'docx', 'pdf',
+                      'xls', 'xlsx', 'csv', 'tsv', 'rtf', 'tex',
+                      'md']):
             media_type = "Text"
-        elif (ext in ['xml', 'rdf', 'md5']):
+        elif (ext in ['xml', 'rdf', 'md5', 'pk', 'pkf']):
             media_type = "Metadata"
+        else:
+            media_type = "Unknown"
+            logging.info("Mapping %s -> %s media type" % (ext, media_type))
         return(media_type)
 
     def extract(self, rl):
@@ -162,17 +179,18 @@ class Stats(object):
 
         See: https://pythonspot.com/matplotlib-pie-chart/
         """
-        s = sorted(data_dict.items(), key=lambda x: x[1])
-        # FIXME - should have some limit on number of types to show
+        s = items_by_value(data_dict, ascending=True)
+        # Get float values, show labels only for >1%
         values = [float(x[1]) for x in s]
-        labels = [x[0] for x in s]
+        label_cutoff = sum(values) / 100.0
+        labels = [x[0] if x[1] > label_cutoff else '' for x in s]
         if (color_dict is None):
             color_dict = {}
         # Either use existing color_dict or build a new one for
         # possible re-use (to get same colors for same label in
         # a new plot)
         colors = []
-        cmap = ['red', 'blue', 'green', 'yellowgreen',
+        cmap = ['red', 'blue', 'green', 'purple',
                 'gold', 'lightskyblue', 'lightcoral']
         cn = 0
         for label in labels:
@@ -187,11 +205,16 @@ class Stats(object):
             subplot.set_title(title)
         return(color_dict)
 
-    def text_plot(self, subplot, lines):
-        """Write test lines to subplot."""
+    def text_plot(self, subplot, lines, rows=30):
+        """Write test lines to subplot.
+
+        Parameters:
+          lines - list of lines of text
+          rows - sets line spacing for this many lines by default
+        """
         subplot.axis('off')
-        line_height = 1.0 / 6
-        if (len(lines) > 6):
+        line_height = 1.0 / rows
+        if (len(lines) > rows):
             line_height = 1.0 / len(lines)
         y = 1.0
         for line in lines:
@@ -213,11 +236,11 @@ class Stats(object):
         else:
             f1l.text(0.1, 0.5, 'No resources with size')
         f1r = fig.add_subplot(rows, cols, 2)
-        f1r.axis('off')
-        f1r.text(0.1, 0.8, '%d resources' % self.resource_count)
-        f1r.text(0.1, 0.6, "%d resources with size" % len(self.sizes))
-        f1r.text(0.1, 0.4, "%d resources with no size (omitted)" %
-                 self.no_size)
+        lines = ['%d resources' % self.resource_count,
+                 '%d resources with size' % len(self.sizes),
+                 '%d resources with no size (omitted)' % self.no_size,
+                 'max resource size = %s' % (self.human_size(self.sizes_max))]
+        self.text_plot(f1r, lines, rows=6)
         f2l = fig.add_subplot(rows, cols, 3)
         if (len(self.sizes_log) > 0):
             f2l.hist(self.sizes_log, bins=self.bins)
@@ -227,10 +250,10 @@ class Stats(object):
         else:
             f2l.text(0.1, 0.5, 'No resources with non-zero size')
         f2r = fig.add_subplot(rows, cols, 4)
-        f2r.axis('off')
-        f2r.text(0.1, 0.8, '%d resources with non-zero size' % len(self.sizes_log))
-        f2r.text(0.1, 0.6, '%d resources with zero size (omitted)' %
-                 (len(self.sizes) - len(self.sizes_log)))
+        lines = ['%d resources with non-zero size' % len(self.sizes_log),
+                 '%d resources with zero size (omitted)' %
+                 (len(self.sizes) - len(self.sizes_log))]
+        self.text_plot(f2r, lines, rows=6)
         f3l = fig.add_subplot(rows, cols, 5)
         if (len(self.updates) > 0):
             f3l.hist(self.updates, bins=self.bins)
@@ -240,27 +263,40 @@ class Stats(object):
         else:
             f3l.text(0.1, 0.5, 'No resources with timestamp')
         f3r = fig.add_subplot(rows, cols, 6)
-        f3r.axis('off')
-        f3r.text(0.1, 0.8, "%d resources with timestamp" % len(self.updates))
-        f3r.text(0.1, 0.6, "oldest: %s" % datetime_to_str(self.oldest))
-        f3r.text(0.1, 0.4, "newest: %s" % datetime_to_str(self.newest))
-        f3r.text(0.1, 0.2, "%d resources with no timestamp (omitted)" %
-                 self.no_timestamp)
+        lines = ['%d resources with timestamp' % len(self.updates),
+                 'oldest: %s' % datetime_to_str(self.oldest),
+                 'newest: %s' % datetime_to_str(self.newest),
+                 '%d resources with no timestamp (omitted)' %
+                 self.no_timestamp]
+        self.text_plot(f3r, lines, rows=6)
         fig.subplots_adjust(left=None, bottom=None, right=None, top=None,
                             wspace=0.5, hspace=0.5)
 
     def summary_page2(self):
-        """Plot summary stats by extension."""
+        """Plot summary stats by file extension."""
         fig = plt.figure(figsize=(10, 8))
         fig.suptitle(self.title + " (page 2)")
         rows = 2
         cols = 2
         f1l = fig.add_subplot(rows, cols, 1)
-        color_dict = self.pie(f1l, self.extensions_count,
-                              title='Counts by extension')
+        color_dict = self.pie(f1l, self.extensions_size,
+                              title='Aggregate size by file extension')
+        agg_size = sum(self.extensions_size.values())
+        lines = ["Aggregate size = %s" % (self.human_size(agg_size))]
+        n = 0
+        for (k, v) in items_by_value(self.extensions_size):
+            n += 1
+            if (n > 25):
+                lines.append("(and %d other extsnsions)" %
+                             (len(self.extensions_size) - n + 1))
+                break
+            lines.append("%s : %s (%d items)" %
+                         (k, self.human_size(v), self.extensions_count[k]))
+        f1r = plt.subplot2grid((rows, cols), (0, 1), rowspan=2)
+        self.text_plot(f1r, lines)
         f2l = fig.add_subplot(rows, cols, 3)
-        self.pie(f2l, self.extensions_size,
-                 title='Aggregate size by extension',
+        self.pie(f2l, self.extensions_count,
+                 title='Counts by file extension',
                  color_dict=color_dict)
         fig.subplots_adjust(left=None, bottom=None, right=None, top=None,
                             wspace=0.5, hspace=0.5)
@@ -273,31 +309,36 @@ class Stats(object):
             mt = self.extension_to_media_type(ext)
             media_count[mt] = media_count.get(mt, 0) + self.extensions_count[ext]
             media_size[mt] = media_size.get(mt, 0) + self.extensions_size[ext]
+        color_dict = {'Video': 'red', 'Audio': 'blue',
+                      'Image': 'green', 'Text': 'gold',
+                      'Metadata': 'purple', 'Unknown': 'gray'}
         fig = plt.figure(figsize=(10, 8))
         fig.suptitle(self.title + " (page 3)")
         rows = 2
         cols = 2
         f1l = fig.add_subplot(rows, cols, 1)
-        color_dict = self.pie(f1l, media_count,
-                              title='Counts by media type')
-        f2l = fig.add_subplot(rows, cols, 3)
-        self.pie(f2l, media_size,
+        self.pie(f1l, media_size,
                  title='Aggregate size by media type',
                  color_dict=color_dict)
         fig.subplots_adjust(left=None, bottom=None, right=None, top=None,
                             wspace=0.5, hspace=0.5)
-        f2r = fig.add_subplot(rows, cols, 4)
+        f1r = plt.subplot2grid((rows, cols), (0, 1), rowspan=2)
         agg_size = sum(media_size.values())
         lines = ["Aggregate size = %s" % (self.human_size(agg_size))]
-        for (k, v) in media_size.items():
-            lines.append("%s : %s" % (k, self.human_size(v)))
-        self.text_plot(f2r, lines)
+        for (k, v) in items_by_value(media_size):
+            lines.append("%s : %s (%d items)" %
+                         (k, self.human_size(v), media_count[k]))
+        self.text_plot(f1r, lines)
+        f2l = fig.add_subplot(rows, cols, 3)
+        color_dict = self.pie(f2l, media_count,
+                              title='Counts by media type',
+                              color_dict=color_dict)
 
     def summarize(self, opt):
         """Gerenate comple summary in requested format."""
-        source = opt.resourcelist
+        source = opt.title + ' summary' if opt.title else 'Summary'
         now_str = datetime_to_str(self.now, True)
-        self.title = "Summary for %s at %s" % (source, now_str)
+        self.title = "%s at %s" % (source, now_str)
         # Write PDF or display in interactive viewer?
         if (opt.pdf):
             with PdfPages(opt.pdf) as pdf:
@@ -317,21 +358,21 @@ class Stats(object):
             print("Plot saved as %s" % (opt.pdf))
         else:
             plt.ion()
+            print("Showing page1.")
             self.summary_page1()
             plt.show()
-            _ = input("Press [enter] to continue.")  # wait for input from the user
+            _ = input("Press [enter] for page2.")  # wait for input from the user
             plt.close()
             self.summary_page2()
             plt.show()
-            _ = input("Press [enter] to continue.")
+            _ = input("Press [enter] for page3.")
             plt.close()
             self.summary_page3()
             plt.show()
-            _ = input("Press [enter] to continue.")
+            _ = input("Press [enter] to exit.")
 
-    def analyze_and_summarize(self, resourcelist, opt):
+    def analyze_and_summarize(self, opt):
         """Extract and summarize stats for ResourceList."""
-        self.extract(resourcelist)
         self.rescale_updates()
         self.rescale_sizes()
         self.summarize(opt)
